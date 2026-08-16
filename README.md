@@ -22,8 +22,13 @@ This is **not** mint media and **not** the shop.
 
 https://jackbeatnic.github.io/jbg-present/
 
-Rebuild from the monorepo:
+## New image (run yourself)
 
-```text
-python3 raportowanie/buduj_jbg_present.py avalanche_nature_stories
+See **CZYTAJ_MNIE.txt**. Short version:
+
+```bash
+cd ~/jb_nft/jbg-present
+python3 build.py --collection avalanche_nature_stories --id 388 --src /path/oryginał.jpg --push
 ```
+
+Or drop `inbox/<collection>/<token_id>.jpg` and run `python3 build.py --inbox --push`.
