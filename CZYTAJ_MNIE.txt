@@ -1,0 +1,55 @@
+JBG-PRESENT — cache miniaturek i View (odpalasz SAM)
+====================================================
+
+Repo:  https://github.com/jackbeatnic/jbg-present
+Live:  https://jackbeatnic.github.io/jbg-present/
+
+Oryginał (2048 / ~1600) NIE idzie na stronę.
+Skrypt robi tylko mniejsze WebP: thumb 440 i view 900 (nigdy 100% backupu).
+
+
+JEDEN NOWY OBRAZEK
+------------------
+  cd ~/jb_nft/jbg-present
+  pip install -r requirements.txt    # raz
+
+  python3 build.py \
+    --collection avalanche_nature_stories \
+    --id 388 \
+    --src /ścieżka/do/oryginału.jpg \
+    --push
+
+
+ALBO WRZUTKA DO INBOX
+---------------------
+  1. Skopiuj JPG jako:
+       inbox/avalanche_nature_stories/388.jpg
+     (nazwa pliku = token_id, ten sam co na OpenSea)
+
+  2. python3 build.py --inbox --push
+
+  Oryginał ląduje w inbox/_done/ (nie w Pages).
+
+
+Z LOKALNEGO BACKUPU
+-------------------
+  python3 build.py --from-backup \
+    --collection avalanche_nature_stories \
+    --ids 388,389 \
+    --push
+
+
+CO POWSTAJE
+-----------
+  avalanche_nature_stories/388.thumb.webp   ← siatka
+  avalanche_nature_stories/388.view.webp    ← przycisk View
+
+Galeria WWW szuka tych URL-i sama (collection_id + token_id).
+Po --push odczekaj ~1 min na GitHub Pages, potem hard refresh strony.
+
+
+NIE
+---
+  ✗ wrzucać JPG 2048 do katalogu kolekcji
+  ✗ mylić z jb-nft-assets (to mint / on-chain)
+  ✗ mylić z jbg-shop

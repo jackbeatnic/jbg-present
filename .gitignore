@@ -1,0 +1,8 @@
+__pycache__/
+inbox/**/*.jpg
+inbox/**/*.jpeg
+inbox/**/*.png
+inbox/**/*.webp
+inbox/**/*.avif
+inbox/_done/
+.DS_Store
