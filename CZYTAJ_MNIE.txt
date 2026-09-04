@@ -39,6 +39,18 @@ Z LOKALNEGO BACKUPU
     --push
 
 
+SHOP (miniaturki bez dopisywania do AI Art)
+-------------------------------------------
+  Shop czyta te same URL-e co AI Art (collection_id + token_id).
+  Nie dodaje wpisów do gallery.json.
+
+  cd ~/jb_nft
+  python3 raportowanie/buduj_jbg_present.py --shop --mint-offline --skip-existing
+
+  Potem z jbg-present: git add -A && git commit && git push
+  Odczekaj ~1 min na GitHub Pages.
+
+
 CO POWSTAJE
 -----------
   avalanche_nature_stories/388.thumb.webp   ← siatka
