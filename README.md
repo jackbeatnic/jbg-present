@@ -10,6 +10,7 @@ This is **not** mint media and **not** the shop.
 | `jb-nft-assets` | on-chain / mint originals + meta |
 | `jbg-shop` | studio shop (separate) |
 | `jbg-present` | this repo — thumbs + View only |
+| `jbg-og` | 1200×630 share cards (not this repo) |
 
 ## Rules
 
