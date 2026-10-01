@@ -5,7 +5,7 @@ Run this yourself when a new image exists. The 2048 / ~1600 JPG stays
 offline (backup or inbox). Only smaller WebPs are written and pushed.
 
   # one new file
-  python3 build.py --collection avalanche_nature_stories --id 388 --src /path/nowy.jpg
+  python3 build.py --collection avalanche_nature_stories --id 388 --src /path/new.jpg
 
   # drop files as inbox/<collection>/<token_id>.jpg then:
   python3 build.py --inbox
@@ -28,7 +28,7 @@ from pathlib import Path
 try:
     from PIL import Image
 except ImportError:
-    sys.exit("Potrzebny Pillow:  pip install -r requirements.txt")
+    sys.exit("Pillow required:  pip install -r requirements.txt")
 
 ROOT = Path(__file__).resolve().parent
 INBOX = ROOT / "inbox"
@@ -67,7 +67,7 @@ def write_pair(src: Path, dest_dir: Path, token_id: int) -> tuple[Path, Path]:
         view.save(view_path, "WEBP", quality=VIEW_Q, method=6)
         if max(thumb.size) >= long_side or max(view.size) >= long_side:
             raise SystemExit(
-                f"Odmowa: wynik nie jest mniejszy niż oryginał {src} ({long_side}px)"
+                f"Refused: output is not smaller than the original {src} ({long_side}px)"
             )
     return thumb_path, view_path
 
@@ -103,7 +103,7 @@ def jobs_from_inbox() -> list[tuple[str, int, Path]]:
                 continue
             m = STEM_ID.match(src.stem)
             if not m:
-                print(f"  pomijam (nazwa nie jest token_id): {src}", file=sys.stderr)
+                print(f"  skipping (file name is not a token_id): {src}", file=sys.stderr)
                 continue
             jobs.append((col_dir.name, int(m.group(1)), src))
     return jobs
@@ -120,7 +120,7 @@ def git_push(paths: list[Path]) -> None:
         check=True,
     )
     if not status.stdout.strip():
-        print("git: brak nowych plików do push")
+        print("git: no new files to push")
         return
     msg = "Present cache: " + ", ".join(rel[:8])
     if len(rel) > 8:
@@ -132,11 +132,11 @@ def git_push(paths: list[Path]) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--collection", help="np. avalanche_nature_stories")
-    ap.add_argument("--id", type=int, help="jeden token_id")
-    ap.add_argument("--ids", help="lista: 388,389,390")
-    ap.add_argument("--src", type=Path, help="ścieżka do oryginału JPG (nie kopiujemy go)")
-    ap.add_argument("--inbox", action="store_true", help="weź inbox/<collection>/<id>.jpg")
+    ap.add_argument("--collection", help="e.g. avalanche_nature_stories")
+    ap.add_argument("--id", type=int, help="a single token_id")
+    ap.add_argument("--ids", help="list: 388,389,390")
+    ap.add_argument("--src", type=Path, help="path to the original JPG (it is not copied)")
+    ap.add_argument("--inbox", action="store_true", help="take inbox/<collection>/<id>.jpg")
     ap.add_argument("--from-backup", action="store_true")
     ap.add_argument(
         "--backup-root",
@@ -144,7 +144,7 @@ def main() -> int:
         default=BACKUP_DEFAULT,
         help="backup_offline/by_collection",
     )
-    ap.add_argument("--push", action="store_true", help="git commit + push na Pages")
+    ap.add_argument("--push", action="store_true", help="git commit + push to Pages")
     args = ap.parse_args()
 
     jobs: list[tuple[str, int, Path]] = []
@@ -152,30 +152,30 @@ def main() -> int:
     if args.inbox:
         jobs.extend(jobs_from_inbox())
         if not jobs:
-            print("inbox pusty — wrzuć pliki jako inbox/<collection>/<token_id>.jpg")
+            print("inbox empty — drop files as inbox/<collection>/<token_id>.jpg")
             return 1
 
     ids = parse_ids(args.ids, args.id)
     if args.src:
         if not args.collection or not ids:
-            raise SystemExit("--src wymaga --collection i --id")
+            raise SystemExit("--src requires --collection and --id")
         if not args.src.is_file():
-            raise SystemExit(f"brak pliku: {args.src}")
+            raise SystemExit(f"file not found: {args.src}")
         jobs.append((args.collection, ids[0], args.src.resolve()))
         ids = ids[1:]
 
     if args.from_backup:
         if not args.collection or not ids:
-            raise SystemExit("--from-backup wymaga --collection i --id/--ids")
+            raise SystemExit("--from-backup requires --collection and --id/--ids")
         for tid in ids:
             src = find_backup(args.collection, tid, args.backup_root)
             if not src:
-                raise SystemExit(f"brak backupu {args.collection}/{tid} w {args.backup_root}")
+                raise SystemExit(f"no backup for {args.collection}/{tid} in {args.backup_root}")
             jobs.append((args.collection, tid, src))
         ids = []
 
     if ids:
-        raise SystemExit("zostały --id/--ids bez --src ani --from-backup")
+        raise SystemExit("--id/--ids given without --src or --from-backup")
 
     if not jobs:
         ap.print_help()
@@ -189,7 +189,7 @@ def main() -> int:
             f"OK {collection} #{tid}  "
             f"thumb={thumb.name} ({thumb.stat().st_size} B)  "
             f"view={view.name} ({view.stat().st_size} B)  "
-            f"src={src.name} [oryginał nie skopiowany]"
+            f"src={src.name} [original not copied]"
         )
         written.extend([thumb, view])
         if args.inbox and INBOX in src.parents:
@@ -197,7 +197,7 @@ def main() -> int:
             done.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(done / src.name))
 
-    print(f"\n{len(jobs)} prac. Live:")
+    print(f"\n{len(jobs)} job(s). Live:")
     for collection, tid, _src in jobs:
         print(
             f"  https://jackbeatnic.github.io/jbg-present/{collection}/{tid}.thumb.webp"
@@ -206,7 +206,7 @@ def main() -> int:
     if args.push:
         git_push(written)
     else:
-        print("\nBez --push. Gdy gotowe:  python3 build.py --inbox --push")
+        print("\nNo --push. When ready:  python3 build.py --inbox --push")
     return 0
 
 
