@@ -19,10 +19,12 @@ offline (backup or inbox). Only smaller WebPs are written and pushed.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 try:
@@ -33,6 +35,13 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent
 INBOX = ROOT / "inbox"
 BACKUP_DEFAULT = ROOT.parent / "backup_offline" / "by_collection"
+WWW = ROOT.parent / "www"
+
+# backup_offline/media/<on-chain id>.jpg → gallery token_id in jbg-present filenames
+GALLERY_TOKEN_FROM_BACKUP: dict[str, Callable[[int], int]] = {
+    "polygon_jb_ai_play": lambda onchain: 700_000_000 + onchain,
+    "avalanche_nature_jam_vol2": lambda onchain: 10_000 + onchain,
+}
 
 THUMB_MAX = 440
 VIEW_MAX = 900
@@ -72,13 +81,77 @@ def write_pair(src: Path, dest_dir: Path, token_id: int) -> tuple[Path, Path]:
     return thumb_path, view_path
 
 
+def gallery_token_id(collection: str, backup_stem: int) -> int:
+    mapper = GALLERY_TOKEN_FROM_BACKUP.get(collection)
+    return mapper(backup_stem) if mapper else backup_stem
+
+
+def backup_stem_for_gallery_token(collection: str, token_id: int) -> int:
+    if collection == "polygon_jb_ai_play":
+        return token_id - 700_000_000
+    if collection == "avalanche_nature_jam_vol2":
+        return token_id - 10_000
+    return token_id
+
+
 def find_backup(collection: str, token_id: int, backup_root: Path) -> Path | None:
     media = backup_root / collection / "media"
+    stem = backup_stem_for_gallery_token(collection, token_id)
     for ext in (".jpg", ".jpeg", ".png", ".webp", ".avif"):
-        p = media / f"{token_id}{ext}"
+        p = media / f"{stem}{ext}"
         if p.is_file():
             return p
     return None
+
+
+def tokens_in_www_gallery(collection: str) -> set[int] | None:
+    """Token ids the live gallery may request for this collection_id."""
+    if not WWW.is_dir():
+        return None
+    paths = [
+        WWW / "gallery.json",
+        WWW / "ai_play_gallery.json",
+        WWW / "nature_jam_gallery.json",
+    ]
+    out: set[int] = set()
+    for path in paths:
+        if not path.is_file():
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        nfts = data.get("nfts", [])
+        for n in nfts:
+            if n.get("collection_id") == collection and n.get("token_id") is not None:
+                out.add(int(n["token_id"]))
+    return out if out else None
+
+
+def jobs_sync_missing(
+    collection: str,
+    backup_root: Path,
+    *,
+    only_gallery: bool = True,
+) -> list[tuple[str, int, Path]]:
+    media = backup_root / collection / "media"
+    if not media.is_dir():
+        raise SystemExit(f"no backup media: {media}")
+    allowed = tokens_in_www_gallery(collection) if only_gallery else None
+    jobs: list[tuple[str, int, Path]] = []
+    dest = ROOT / collection
+    for src in sorted(media.iterdir()):
+        if src.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".avif"}:
+            continue
+        m = STEM_ID.match(src.stem)
+        if not m:
+            continue
+        onchain = int(m.group(1))
+        tid = gallery_token_id(collection, onchain)
+        if allowed is not None and tid not in allowed:
+            continue
+        thumb = dest / f"{tid}.thumb.webp"
+        if thumb.is_file():
+            continue
+        jobs.append((collection, tid, src))
+    return jobs
 
 
 def parse_ids(raw: str | None, single: int | None) -> list[int]:
@@ -127,7 +200,7 @@ def git_push(paths: list[Path]) -> None:
         msg += f" (+{len(rel) - 8})"
     subprocess.check_call(["git", "commit", "-m", msg], cwd=ROOT)
     subprocess.check_call(["git", "push", "origin", "HEAD"], cwd=ROOT)
-    print("pushed → https://jackbeatnic.github.io/jbg-present/")
+    print("pushed → https://jackbeatnic.art/jbg-present/")
 
 
 def main() -> int:
@@ -145,9 +218,32 @@ def main() -> int:
         help="backup_offline/by_collection",
     )
     ap.add_argument("--push", action="store_true", help="git commit + push to Pages")
+    ap.add_argument(
+        "--sync-missing",
+        action="store_true",
+        help="build every missing thumb/view from backup_offline for --collection",
+    )
+    ap.add_argument(
+        "--all-backup",
+        action="store_true",
+        help="with --sync-missing: ignore www gallery.json filter",
+    )
     args = ap.parse_args()
 
     jobs: list[tuple[str, int, Path]] = []
+
+    if args.sync_missing:
+        if not args.collection:
+            raise SystemExit("--sync-missing requires --collection")
+        jobs = jobs_sync_missing(
+            args.collection,
+            args.backup_root,
+            only_gallery=not args.all_backup,
+        )
+        if not jobs:
+            print(f"sync-missing: nothing to build for {args.collection}")
+            return 0
+        print(f"sync-missing: {len(jobs)} file(s) for {args.collection}")
 
     if args.inbox:
         jobs.extend(jobs_from_inbox())
@@ -200,7 +296,7 @@ def main() -> int:
     print(f"\n{len(jobs)} job(s). Live:")
     for collection, tid, _src in jobs:
         print(
-            f"  https://jackbeatnic.github.io/jbg-present/{collection}/{tid}.thumb.webp"
+            f"  https://jackbeatnic.art/jbg-present/{collection}/{tid}.thumb.webp"
         )
 
     if args.push:
