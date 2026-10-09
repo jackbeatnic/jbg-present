@@ -24,6 +24,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -199,8 +200,46 @@ def git_push(paths: list[Path]) -> None:
     if len(rel) > 8:
         msg += f" (+{len(rel) - 8})"
     subprocess.check_call(["git", "commit", "-m", msg], cwd=ROOT)
-    subprocess.check_call(["git", "push", "origin", "HEAD"], cwd=ROOT)
+    _push_rebased()
     print("pushed → https://jackbeatnic.art/jbg-present/")
+
+
+def _push_rebased() -> None:
+    """Take remote commits (other machines, timers), then push. No force."""
+    last = ""
+    for attempt in range(1, 5):
+        pull = subprocess.run(
+            ["git", "pull", "--rebase", "--autostash", "origin", "main"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if pull.returncode != 0:
+            subprocess.run(["git", "rebase", "--abort"], cwd=ROOT, capture_output=True)
+            last = (pull.stderr or pull.stdout or "").strip()
+            low = last.lower()
+            if "conflict" in low or "could not apply" in low or "fix conflicts" in low:
+                raise SystemExit(
+                    "git: GitHub and this machine changed the same file. Not pushing.\n"
+                    + last[-400:]
+                )
+            print(f"git: pull failed ({attempt}/4)", file=sys.stderr)
+            if attempt == 4:
+                raise SystemExit(last[-400:] or "git pull --rebase failed")
+            time.sleep(2)
+            continue
+        push = subprocess.run(
+            ["git", "push", "origin", "HEAD"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if push.returncode == 0:
+            return
+        last = (push.stderr or push.stdout or "").strip()
+        print(f"git: push rejected ({attempt}/4), taking GitHub commits and retrying", file=sys.stderr)
+        time.sleep(2)
+    raise SystemExit("git push failed\n" + (last[-400:] or ""))
 
 
 def main() -> int:
