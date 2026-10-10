@@ -13,7 +13,7 @@ offline (backup or inbox). Only smaller WebPs are written and pushed.
   # drop files as inbox/<collection>/<token_id>.jpg then:
   python3 build.py --inbox
 
-  # from jb_nft backup_offline (same machine)
+  # from the offline backup on this machine
   python3 build.py --from-backup --collection avalanche_nature_stories --id 388
 
   python3 build.py --inbox --push

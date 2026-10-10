@@ -34,7 +34,6 @@ https://jackbeatnic.github.io/jbg-present/
 Install once:
 
 ```bash
-cd ~/jb_nft/jbg-present
 pip install -r requirements.txt
 ```
 
