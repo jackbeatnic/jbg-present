@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Proprietary. Copyright Jack Beatnic. All rights reserved.
+# Not open source and not public domain. AI assistance, if any,
+# does not license the design of this tool.
 """Build gallery cache: thumb + view WebP. Never publishes the original.
 
 Run this yourself when a new image exists. The 2048 / ~1600 JPG stays
@@ -184,6 +187,8 @@ def jobs_from_inbox() -> list[tuple[str, int, Path]]:
 
 
 def git_push(paths: list[Path]) -> None:
+    # BOT RULE: commit only the WebP files this run just wrote.
+    # Do not stage hand-edited scripts, README, or anything outside those paths.
     rel = [str(p.relative_to(ROOT)) for p in paths]
     subprocess.check_call(["git", "add", "--", *rel], cwd=ROOT)
     status = subprocess.run(
