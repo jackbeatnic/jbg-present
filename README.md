@@ -1,5 +1,9 @@
 # jbg-present
 
+Proprietary. All rights reserved. Not open source. Not public domain.
+Publishing these WebP files does not license the gallery design or the studio system.
+AI assistance, if any, does not change that.
+
 Presentation images for the **Jack Beatnic Gallery** (`jackbeatnic.github.io`).
 
 This is **not** mint media and **not** the shop.
